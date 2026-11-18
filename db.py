@@ -22,7 +22,7 @@ DB_CONFIG = {
     "host": _env("MYSQL_HOST", "localhost"),
     "port": int(_env("MYSQL_PORT", 3306)),
     "user": _env("MYSQL_USER", "root"),
-    "password": _env("MYSQL_PASSWORD", "在这里填你的MySQL密码"),  # 本地手动跑请改这里或设环境变量
+    "password": _env("MYSQL_PASSWORD", "root"),  # 本地手动跑请改这里或设环境变量
     "database": _env("MYSQL_DATABASE", "freshchain"),
     "charset": "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor,  # 结果返回成字典，方便转 JSON
