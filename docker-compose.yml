@@ -1,0 +1,43 @@
+# 鲜智链 FreshChain 一键复现：MySQL 8 + 自研 FastAPI 调度服务
+# 用法：cp .env.example .env（一般无需修改）→ docker compose up --build
+# 浏览器打开 http://127.0.0.1:8000/ 即可使用门面页。
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: freshchain-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-freshchain}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-freshchain}
+      TZ: Asia/Shanghai
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      # 首次启动自动执行建库建表脚本（仅空数据卷时执行一次）
+      - ./freshchain_schema.sql:/docker-entrypoint-initdb.d/01_freshchain_schema.sql:ro
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_PASSWORD:-freshchain} | grep -q 'mysqld is alive'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  fastapi:
+    build: .
+    container_name: freshchain-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-freshchain}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-freshchain}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

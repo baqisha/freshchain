@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鲜智链 FreshChain · 生鲜智能决策平台</title>
+<style>
+  :root{
+    --green:#2e9e6b; --green-d:#237e55; --bg:#f4f8f5; --card:#fff;
+    --ink:#1f2d27; --sub:#6b7d74; --line:#e3ebe6; --warn:#f0a83c; --blue:#4a86e8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:"Microsoft YaHei","PingFang SC",sans-serif}
+  body{background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+  header{text-align:center;padding:28px 0 18px}
+  header h1{font-size:30px;letter-spacing:2px;color:var(--green-d)}
+  header p{color:var(--sub);margin-top:8px;font-size:14px}
+  .tabs{display:flex;gap:12px;justify-content:center;margin:22px 0}
+  .tab{padding:11px 26px;border-radius:30px;border:2px solid var(--line);
+       background:#fff;cursor:pointer;font-size:15px;color:var(--sub);transition:.2s}
+  .tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+  .panel{background:var(--card);border-radius:18px;padding:22px;box-shadow:0 4px 18px rgba(46,158,107,.08)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .chip{padding:7px 14px;background:#eef5f1;border-radius:18px;font-size:13px;
+        color:var(--green-d);cursor:pointer;border:1px solid #d8e8df}
+  .chip:hover{background:#e0efe7}
+  .input-row{display:flex;gap:10px}
+  .input-row input{flex:1;padding:13px 16px;border:2px solid var(--line);border-radius:12px;font-size:15px;outline:none}
+  .input-row input:focus{border-color:var(--green)}
+  .input-row button{padding:13px 26px;background:var(--green);color:#fff;border:none;
+       border-radius:12px;font-size:15px;cursor:pointer}
+  .input-row button:disabled{opacity:.6}
+  .result{margin-top:18px;display:none}
+  .badge{display:inline-block;padding:4px 12px;border-radius:14px;font-size:12px;margin-right:8px}
+  .b-ok{background:#e6f3ec;color:var(--green-d)}
+  .b-retry{background:#fdf1dc;color:#b9791f}
+  .b-task{background:#e9f0fb;color:var(--blue)}
+  .answer{margin-top:12px;line-height:1.9;white-space:pre-wrap;font-size:15px}
+  .trace{margin-top:14px;background:#f6faf8;border-radius:12px;padding:14px;font-size:13px;color:var(--sub)}
+  .trace li{margin:4px 0 4px 18px}
+  .chart{margin-top:16px}
+  .chart h4{font-size:14px;color:var(--green-d);margin:12px 0 6px}
+  .bar-row{display:flex;align-items:center;gap:10px;margin:6px 0}
+  .bar-name{width:72px;font-size:13px;flex-shrink:0}
+  .bar-track{flex:1;background:#eef3f0;border-radius:8px;height:24px}
+  .bar-fill{height:100%;border-radius:8px;background:var(--green);color:#fff;font-size:12px;
+       display:flex;align-items:center;justify-content:flex-end;padding-right:8px;min-width:34px;transition:width .5s}
+  .bar-fill.slow{background:var(--warn)}
+  .err{color:#c0504d;margin-top:12px}
+  .foot{text-align:center;color:#9db0a8;font-size:12px;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🥬 鲜智链 FreshChain</h1>
+    <p>多 Agent 编排调度 · 生鲜智能决策平台 ｜ 消费者查询 · 门店管理</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" id="tabBuy" onclick="switchMode('buy')">🛒 我要买菜</button>
+    <button class="tab" id="tabMgr" onclick="switchMode('mgr')">📊 门店管理</button>
+  </div>
+
+  <div class="panel">
+    <div class="chips" id="chips"></div>
+    <div class="input-row">
+      <input id="q" placeholder="输入你的问题，例如：今天有什么特惠？" onkeydown="if(event.key==='Enter')send()">
+      <button id="btn" onclick="send()">发送</button>
+    </div>
+
+    <div class="result" id="result">
+      <div>
+        <span class="badge b-task" id="bTask"></span>
+        <span class="badge b-ok" id="bConf"></span>
+        <span class="badge b-retry" id="bRetry"></span>
+      </div>
+      <div class="answer" id="answer"></div>
+      <div class="chart" id="chart"></div>
+      <div class="trace" id="trace"></div>
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+
+  <div class="foot">数据经交叉核验 · 自研调度与 PDCA 自循环 · 仅供演示</div>
+</div>
+
+<script>
+let mode = 'buy';
+const API = 'http://127.0.0.1:8000/api/orchestrate';
+
+const chips = {
+  buy: ['今天有什么特惠？', '西红柿多少钱？', '鸡蛋库存还有多少？'],
+  mgr: ['最近什么好卖，该怎么进货？', '哪些商品卖不动？', '演示最近该怎么进货？']
+};
+
+function switchMode(m){
+  mode = m;
+  document.getElementById('tabBuy').classList.toggle('active', m==='buy');
+  document.getElementById('tabMgr').classList.toggle('active', m==='mgr');
+  document.getElementById('q').placeholder = m==='buy' ? '输入你的问题，例如：今天有什么特惠？' : '输入管理问题，例如：最近什么好卖，该怎么进货？';
+  renderChips();
+}
+function renderChips(){
+  document.getElementById('chips').innerHTML = chips[mode].map(c=>
+    `<span class="chip" onclick="document.getElementById('q').value='${c}';send()">${c}</span>`).join('');
+}
+renderChips();
+
+async function send(){
+  const q = document.getElementById('q').value.trim();
+  if(!q) return;
+  const btn = document.getElementById('btn');
+  btn.disabled = true; btn.textContent = '调度中…';
+  document.getElementById('err').textContent = '';
+  try{
+    const r = await fetch(API, {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({query:q})});
+    const d = await r.json();
+    if(d.error){ throw new Error(d.error); }
+    document.getElementById('result').style.display='block';
+    const taskLabel = {'consumer_query':'消费者查询','manager_analysis':'门店分析','greeting':'问候介绍','item_sales':'单品销量'};
+    document.getElementById('bTask').textContent = taskLabel[d.task_type] || d.task_type;
+    document.getElementById('bConf').textContent = '置信度 ' + d.confidence;
+    document.getElementById('bRetry').textContent = d.retry_count>0 ? `已自动修正 ${d.retry_count} 次` : '一次通过';
+    document.getElementById('answer').textContent = d.answer;
+    renderChart(d.chart);
+    document.getElementById('trace').innerHTML = '<b>调度轨迹：</b><ul>' +
+      d.trace.map(t=>`<li>${t}</li>`).join('') + '</ul>';
+  }catch(e){
+    document.getElementById('result').style.display='block';
+    document.getElementById('answer').textContent='';
+    document.getElementById('chart').innerHTML='';
+    document.getElementById('err').textContent='连接失败：'+e.message+'（请确认后端服务已启动）';
+  }finally{
+    btn.disabled=false; btn.textContent='发送';
+  }
+}
+
+function renderChart(c){
+  const el = document.getElementById('chart');
+  if(!c || (!c.hot && !c.slow)){ el.innerHTML=''; return; }
+  const all = (c.hot||[]).concat(c.slow||[]).map(x=>x.value);
+  const max = Math.max(...all, 1);
+  const row = (x,cls)=>`<div class="bar-row"><span class="bar-name">${x.name}</span>`
+    + `<div class="bar-track"><div class="bar-fill ${cls}" style="width:${Math.max(8,x.value/max*100)}%">${x.value}</div></div></div>`;
+  let html = '';
+  if(c.hot && c.hot.length) html += '<h4>🔥 近7天热销（销量）</h4>' + c.hot.map(x=>row(x,'')).join('');
+  if(c.slow && c.slow.length) html += '<h4>⚠️ 滞销（销量）</h4>' + c.slow.map(x=>row(x,'slow')).join('');
+  el.innerHTML = html;
+}
+</script>
+</body>
+</html>
